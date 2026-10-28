@@ -1,0 +1,63 @@
+{
+  "format": 2,
+  "title": "CUSTOM EPISODES / NODE PROCESS",
+  "start": "example_station",
+  "grid": 30,
+  "default_bgm": "flowloop_1_true",
+  "bgm_fade_ms": 350,
+  "chapters": [
+    {
+      "id": "custom_a",
+      "origin": [
+        160,
+        610
+      ],
+      "background": "flow1",
+      "background_position": [
+        136,
+        594
+      ],
+      "hud_frame": 1,
+      "bgm": "flowloop_1_true",
+      "bgm_fade_ms": 350
+    }
+  ],
+  "nodes": [
+    {
+      "id": "example_station",
+      "chapter": "custom_a",
+      "x": 8,
+      "y": 0,
+      "episode": "CUSTOM 01",
+      "title": "示例：警局的一分钟",
+      "description": [
+        "冰霜 Custom Episodes 格式示例。",
+        "Node Process 负责入口，原版文本框负责播放。"
+      ],
+      "story": "episodes/_example/story.json",
+      "requires": [],
+      "nav": {
+        "right": "rainy_night"
+      }
+    },
+    {
+      "id": "rainy_night",
+      "chapter": "custom_a",
+      "x": 12,
+      "y": 0,
+      "episode": "CUSTOM 02",
+      "title": "雨夜",
+      "description": [
+        "演示转场、立绘移动、音效与全屏文本。",
+        "剧情结束后返回自定义 Node Flowchart。"
+      ],
+      "story": "episodes/rainynight/story.json",
+      "requires": [
+        "example_station"
+      ],
+      "nav": {
+        "left": "example_station"
+      }
+    }
+  ]
+}

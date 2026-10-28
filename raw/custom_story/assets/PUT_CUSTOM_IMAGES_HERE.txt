@@ -1,0 +1,9 @@
+Optional external images can live here.
+
+Example story command for a background PNG:
+  {"op":"background","file":"assets/my_background.png"}
+
+Example portrait command:
+  {"op":"portrait","id":"hero","file":"assets/hero.png","x":160,"y":150,"scale":0.16,"facing_right":false}
+
+The path is relative to custom_story/. External images are loaded with sprite_add() and cached for the session.

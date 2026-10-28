@@ -1,8 +1,146 @@
 [
   {
-    "Entry": "gml_Object_o_story_pause_Step_0",
-    "Find": "next_room = scene_eventline;",
-    "Value": "next_room = scene_eventline; if (variable_global_exists(\"mod_cs_active\") && global.mod_cs_active) next_room = scene_mainmenu;",
-    "Type": 1
+    "Entry": "gml_GlobalScript_load_event_nodes",
+    "Type": 3,
+    "Find": "",
+    "Value": "",
+    "ExternalFile": "custom_story_helpers.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_newmenu_main_Create_0",
+    "Type": 3,
+    "Find": "",
+    "Value": "",
+    "ExternalFile": "menu_cleanup.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_newmenu_main_Create_0",
+    "Type": 0,
+    "Find": "transitionToScene(scene_eventline, true, 4);",
+    "Value": "",
+    "ExternalFile": "menu_activate.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "load_event_nodes();",
+    "Value": "if ((variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true))\n    global.custom_story_load_nodes();\nelse\n    load_event_nodes();",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "if (global.story_progress < 3)\n    play_bgm(flowloop_1_true, 0);\nelse if (global.story_progress < 9)\n    play_bgm(flowloop_2_true, 0);\nelse if (global.story_progress < 15)\n    play_bgm(flowloop_3_true, 0);\nelse if (global.story_progress < 23)\n    play_bgm(flowloop_4_true, 0);\nelse\n    play_bgm(flowloop_5_true, 0);",
+    "Value": "if (!(variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true))\n{\n    if (global.story_progress < 3)\n        play_bgm(flowloop_1_true, 0);\n    else if (global.story_progress < 9)\n        play_bgm(flowloop_2_true, 0);\n    else if (global.story_progress < 15)\n        play_bgm(flowloop_3_true, 0);\n    else if (global.story_progress < 23)\n        play_bgm(flowloop_4_true, 0);\n    else\n        play_bgm(flowloop_5_true, 0);\n}",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "audio_sound_gain(global.bgm, 3 * global.op_bgm_volume, 1000);",
+    "Value": "if (!(variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true))\n    audio_sound_gain(global.bgm, 3 * global.op_bgm_volume, 1000);",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "image_speed = 0.05;",
+    "Value": "if ((variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true) && variable_global_exists(\"custom_story_select_node\"))\n    global.custom_story_select_node(current_node);\n\nimage_speed = 0.05;",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "create_story_events();",
+    "Value": "if (!(variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true))\n    create_story_events();",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "current_node = global.last_eventline_node;",
+    "Value": "current_node = (variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true) ? global.custom_story_last_node : global.last_eventline_node;",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "global.load_scene = arg0.story;",
+    "Value": "if ((variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true) && variable_struct_exists(arg0, \"custom_story\") && arg0.custom_story)\n        {\n            global.custom_story_current_file = global.custom_story_root() + arg0.custom_story_file;\n            if (variable_global_exists(\"last_episode_name\"))\n                global.mod_cs_saved_episode = global.last_episode_name;\n            else\n                global.mod_cs_saved_episode = \"\";\n            global.last_episode_name = arg0.custom_episode;\n        }\n        else\n        {\n            global.load_scene = arg0.story;\n        }",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "if (global.still_in_prologue)",
+    "Value": "if (!(variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true) && global.still_in_prologue)",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Create_0",
+    "Type": 1,
+    "Find": "deserialise_eventline_progress(ini_read_string(\"profile\", \"unlocked_event_nodes_v2\", \"\"));",
+    "Value": "if (!(variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true))\n    deserialise_eventline_progress(ini_read_string(\"profile\", \"unlocked_event_nodes_v2\", \"\"));",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Step_0",
+    "Type": 1,
+    "Find": "if (!enabled)\n    exit;",
+    "Value": "",
+    "ExternalFile": "step_gate.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Other_10",
+    "Type": 1,
+    "Find": "global.last_eventline_node = current_node;",
+    "Value": "if ((variable_global_exists(\"custom_story_mode\") && global.custom_story_mode == true))\n{\n    global.custom_story_last_node = current_node;\n    if (variable_global_exists(\"custom_story_select_node\"))\n        global.custom_story_select_node(current_node);\n}\nelse\n{\n    global.last_eventline_node = current_node;\n}",
+    "ExternalFile": "",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_drawer_Draw_0",
+    "Type": 1,
+    "Find": "draw_set_default();",
+    "Value": "",
+    "ExternalFile": "draw_gate.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventline_Draw_64",
+    "Type": 1,
+    "Find": "draw_sprite(sp_eventline_hud, get_nodeflow_chapter(current_node), 0, 0);",
+    "Value": "",
+    "ExternalFile": "custom_hud.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_eventnode_Other_10",
+    "Type": 2,
+    "Find": "",
+    "Value": "",
+    "ExternalFile": "eventnode_gate.gml",
+    "Function": ""
+  },
+  {
+    "Entry": "gml_Object_o_cutsceneConductor_Create_0",
+    "Type": 1,
+    "Find": "coroutine = script_execute(global.load_scene);",
+    "Value": "",
+    "ExternalFile": "story_conductor_begin.gml",
+    "Function": ""
   }
 ]

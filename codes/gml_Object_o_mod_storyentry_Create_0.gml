@@ -5,15 +5,17 @@
 // code executed at startup on this VML build (verified: the object ran while the
 // global helper functions were still undefined), so the mod must not depend on
 // global-init execution. All helpers below are instance methods of this object.
-global.mod_cs_dir     = "Custom Episodes/";   // relative to the game directory
+global.mod_cs_dir     = "custom_story/";   // relative to the game directory
 global.mod_cs_active  = false;             // is a custom episode playing right now
 global.mod_cs_pending = undefined;         // story folder waiting to be loaded
 global.mod_cs_saved_load_scene = undefined;
 global.mod_cs_saved_episode = "";
+global.mod_cs_node_file = "";          // absolute story path supplied by custom Node Flowchart
+global.mod_cs_story_base = "";         // directory containing the current node story
 
 // Create the resident listener. It is persistent, so it survives game_restart;
 // check first so a restart cannot stack up duplicates.
-// (listener creation moved to the button Step lazy-create)
+// (listener creation is owned by the main-menu Create patch)
 
 /// Trim whitespace and line breaks (file_text_read_string keeps a trailing CR).
 function mod_cs_trim(_str)
@@ -246,10 +248,24 @@ function mod_cs_is_image_name(_name)
     return false;
 }
 
+/// Directory part of a path, always including the trailing slash.
+function mod_cs_dirname(_path)
+{
+    var _p = string_replace_all(mod_cs_str(_path), "\\", "/");
+    for (var _i = string_length(_p); _i >= 1; _i--)
+    {
+        if (string_char_at(_p, _i) == "/")
+            return string_copy(_p, 1, _i);
+    }
+    return "";
+}
+
 /// Path of an external image, relative to the game directory: the image lives in
 /// the episode folder, either next to story.json or in a subfolder of it.
 function mod_cs_image_file(_name)
 {
+    if (variable_global_exists("mod_cs_story_base") && global.mod_cs_story_base != "")
+        return global.mod_cs_story_base + mod_cs_str(_name);
     return global.mod_cs_dir + global.mod_cs_folder + "/" + mod_cs_str(_name);
 }
 
@@ -345,6 +361,8 @@ function mod_cs_audio_file(_name)
     {
         return global.mod_cs_chart_folder + mod_cs_str(_name);
     }
+    if (variable_global_exists("mod_cs_story_base") && global.mod_cs_story_base != "")
+        return global.mod_cs_story_base + mod_cs_str(_name);
     return global.mod_cs_dir + global.mod_cs_folder + "/" + mod_cs_str(_name);
 }
 
@@ -585,6 +603,8 @@ function mod_cs_release_episode()
     mod_cs_reset_resolution();
     mod_cs_free_images();
     mod_cs_free_audio();
+    global.mod_cs_story_base = "";
+    global.mod_cs_node_file = "";
 }
 
 /// Resolves the sprite name for a portrait step.
@@ -875,7 +895,7 @@ function mod_cs_restore_globals()
     }
 }
 
-/// End the custom episode and return to the main menu.
+/// End the custom episode. Node mode returns to its flowchart; legacy mode returns to the main menu.
 function mod_cs_end()
 {
     global.mod_cs_active = false;
@@ -902,7 +922,27 @@ function mod_cs_end()
     text_clear();
     destroy_textbox();
     audio_stop_all();
-    room_goto(scene_mainmenu);
+    // Node-integrated stories return through the same diamond transition used by
+    // Custom Story Node Process. A raw room_goto() makes the ending visibly snap
+    // back to the flowchart and also bypasses the normal transition pacing.
+    if (variable_global_exists("custom_story_mode") && global.custom_story_mode == true)
+    {
+        play_se(sfx_songsel_beginsong);
+        var _transition = instance_create_depth(view_wport[0] / 2, view_hport[0] / 2, -1000, o_transition_diamond);
+        with (_transition)
+        {
+            TweenEasyFade(0, 1, 0, 60, EaseOutQuint);
+            TweenEasyRotate(-45, 315, 0, 60, EaseOutExpo);
+            TweenEasyScale(1, 1, 320, 180, 0, 60, EaseOutQuad);
+            color = 16777215;
+            next_room = scene_eventline;
+            alarm[0] = 60;
+        }
+    }
+    else
+    {
+        room_goto(scene_mainmenu);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -934,6 +974,8 @@ function mod_cs_video_file(_name)
     {
         return global.mod_cs_chart_folder + _n;
     }
+    if (variable_global_exists("mod_cs_story_base") && global.mod_cs_story_base != "")
+        return global.mod_cs_story_base + _n;
     return global.mod_cs_dir + global.mod_cs_folder + "/" + _n;
 }
 
@@ -942,6 +984,9 @@ function mod_cs_video_movie_path(_name)
 {
     var _rel = mod_cs_video_file(_name);
     if (_rel == "") return "";
+    // Node paths include working_directory; the stock player adds it itself.
+    if (string_pos(working_directory, _rel) == 1)
+        _rel = string_delete(_rel, 1, string_length(working_directory));
     return "/" + _rel;
 }
 
@@ -1220,7 +1265,7 @@ function mod_cs_chart_movie_clear()
 // freezes with the song instead of running on the wall clock.
 // ---------------------------------------------------------------------------
 
-/// Appends one line to "Custom Episodes/_modlog.txt" no matter what.
+/// Appends one line to "custom_story/_modlog.txt" no matter what.
 ///
 /// Used by the two features an author cannot debug with "debuglog": in-chart
 /// stories and video cutscenes (a video that does not play is invisible otherwise).
@@ -1846,6 +1891,32 @@ function mod_cs_chart_tick()
 }
 
 
+// Entry used by Custom Story Node Process. The node flow owns navigation and
+// room selection; this wrapper only prepares the IceFrost JSON runtime and returns
+// a real VIVID/STASIS coroutine for o_cutsceneConductor.
+global.mod_cs_run_node_story = function()
+{
+    if (!variable_global_exists("custom_story_current_file") || global.custom_story_current_file == "")
+        return undefined;
+
+    global.mod_cs_node_file = global.custom_story_current_file;
+    global.mod_cs_pending = "";
+    global.mod_cs_owns_load_scene = false;
+    global.story_paused = false;
+
+    // Mark playback mode so pause-menu exits are noticed by the persistent helper.
+    if (instance_exists(o_mod_storyentry))
+    {
+        with (o_mod_storyentry)
+        {
+            mode = 1;
+            menu_open = false;
+        }
+    }
+
+    return global.mod_cs_run_pending();
+};
+
 /// Prepare a story: capture globals, install load_scene, then switch rooms.
 /// Parsing is left to the object's Step, because by then every game object
 /// (o_bg / o_cutsceneConductor / o_story_tint) exists in the new room.
@@ -1893,6 +1964,19 @@ function mod_cs_begin(_folder)
     {
         global.load_scene = undefined;
     }
+
+    // Install our story builder and enter the stock story room. Runtime helpers
+    // are registered by this object's Create event, outside mod_cs_begin(), so
+    // Custom Node Flowchart can call them without first going through the legacy
+    // episode picker.
+    global.load_scene = global.mod_cs_run_pending;
+    global.mod_cs_owns_load_scene = true;
+
+    audio_stop_all();
+    play_se(sfx_songsel_beginsong);
+    room_goto(scene_story);
+}
+
 // Builds a real game coroutine for one custom episode and runs it.
 //
 // Two GML rules shape this code, both learned the hard way:
@@ -1910,7 +1994,7 @@ global.mod_cs_run_pending = function()
     global.mod_cs_pending = undefined;
     global.mod_cs_active = true;
     // Remembered so external image / audio paths can be resolved relative to the
-    // episode.
+    // episode. In node mode the real path is supplied directly by nodes.json.
     global.mod_cs_folder = _folder;
     // A fresh episode never inherits the previous one's images or streams.
     mod_cs_free_images();
@@ -1922,6 +2006,12 @@ global.mod_cs_run_pending = function()
     var _chars = {};
     var _title = "";
     var _file = _dir + _folder + "/story.json";
+    if (variable_global_exists("custom_story_mode") && global.custom_story_mode == true
+        && variable_global_exists("mod_cs_node_file") && global.mod_cs_node_file != "")
+    {
+        _file = global.mod_cs_node_file;
+    }
+    global.mod_cs_story_base = mod_cs_dirname(_file);
     // Opening background / BGM and the chapter label, all optional.
     var _bg = "";
     var _bgm = "";
@@ -2072,35 +2162,37 @@ global.mod_cs_run_pending = function()
             return;
         }
 
-        // name_set() needs an existing o_textbox, so it must come after
+        // name_set() needs an existing o_textbox, so it must come after.
+        // Do not inject an artificial "playing custom episode" line here: a node
+        // story should begin with its first real command, exactly like a stock
+        // story. Missing optional assets are reported to the debug log instead.
         name_set("");
-        // Anything that could not be loaded is reported here, once, instead of
-        // silently showing nothing later on.
-        var _intro = "playing custom episode: " + global.mod_cs_title;
         if (global.mod_cs_image_missing != "")
-        {
-            _intro += chr(10) + "`c{red}[image not found] `c{white}" + global.mod_cs_image_missing;
-        }
+            debug("[CustomStory] image not found: " + global.mod_cs_image_missing);
         if (global.mod_cs_audio_missing != "")
-        {
-            _intro += chr(10) + "`c{red}[audio not found] `c{white}" + global.mod_cs_audio_missing;
-        }
+            debug("[CustomStory] audio not found: " + global.mod_cs_audio_missing);
         if (global.mod_cs_debug_images)
         {
-            if (global.mod_cs_image_sizes != "") _intro += chr(10) + "`c{think}[images] " + global.mod_cs_image_sizes;
-            if (global.mod_cs_audio_sizes != "") _intro += chr(10) + "`c{think}[audio] " + global.mod_cs_audio_sizes;
+            if (global.mod_cs_image_sizes != "") debug("[CustomStory] images: " + global.mod_cs_image_sizes);
+            if (global.mod_cs_audio_sizes != "") debug("[CustomStory] audio: " + global.mod_cs_audio_sizes);
         }
-        text(_intro);
+
+        // The first Await sits in front of command 0. With no synthetic intro
+        // text there is nothing for the player to dismiss, so let that first
+        // Await pass immediately.
+        global.mod_cs_await_mode = 1;
     });
 
     var _end = method(o_mod_storyentry, function()
     {
         global.mod_cs_active = false;
-        // self is the coroutine instance while this runs, so the menu cleanup
-        // (an instance function of o_mod_storyentry) needs an explicit scope.
-        with (o_mod_storyentry)
+        if (!(variable_global_exists("custom_story_mode") && global.custom_story_mode == true))
         {
-            menu_close_browser();
+            // Legacy picker mode keeps its old menu cleanup behavior.
+            with (o_mod_storyentry)
+            {
+                menu_close_browser();
+            }
         }
         mod_cs_end();
     });
@@ -2116,12 +2208,15 @@ global.mod_cs_run_pending = function()
     // survive, so this loop cannot hand the line index to the step body: the
     // step advances the global counter itself when it actually runs.
     global.mod_cs_step_index = 0;
-    global.mod_cs_await_mode = 0;
+    // Command 0 starts immediately; real dialogue lines restore mode 0 and
+    // therefore wait for the normal textbox confirmation before command N+1.
+    global.mod_cs_await_mode = 1;
     for (var _i = 0; _i < array_length(_lines); _i++)
     {
         // The wait in front of every step. Which condition it uses is decided by
         // the *previous* step through global.mod_cs_await_mode:
         //   0 = wait for the player to confirm the textbox
+        //   1 = continue immediately (used before command 0)
         //   2 = plain timer (global.mod_cs_await_ms, started by the step)
         //   4 = switch to the full screen textbox and wait until it is ready
         //   5 = dismiss the full screen textbox and wait until it is gone
@@ -2129,6 +2224,7 @@ global.mod_cs_run_pending = function()
         __CoroutineAwait(method(o_mod_storyentry, function()
         {
             var _mode = global.mod_cs_await_mode;
+            if (_mode == 1) return true;
 
             if (_mode == 2) return ((current_time - global.mod_cs_wait_start) >= global.mod_cs_await_ms);
             if (_mode == 4) return switch_to_fullscreen();
@@ -2692,18 +2788,6 @@ global.mod_cs_change_expression = function(_who, _e)
     _inst.change(_spr, _bounce);
     _inst.visible = true;
 };
-
-    global.load_scene = global.mod_cs_run_pending;
-    global.mod_cs_owns_load_scene = true;
-
-    // o_cutsceneConductor only exists inside the story room, so it must not be
-    // touched here (referencing it on the menu throws "Unable to find any
-    // instance"). The story room creates it; location/time/date are set from the JSON lines.
-
-    audio_stop_all();
-    play_se(sfx_songsel_beginsong);
-    room_goto(scene_story);
-}
 
 // o_mod_storyentry -- Create event, first lines added by the Custom Episodes Mod.
 //
