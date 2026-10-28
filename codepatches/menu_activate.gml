@@ -1,4 +1,4 @@
-// Custom Story Node Process entry.
+// Custom Episodes entry.
 // This intentionally mirrors BVS's TAB + System Options entry:
 //     if (keyboard_check(vk_tab)) { ... } else { ... }
 // Here the modifier is Shift instead of Tab.

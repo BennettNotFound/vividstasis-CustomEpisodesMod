@@ -1,18 +1,18 @@
-# Custom Episodes × Custom Story Node Process
+# Custom Episodes
 
-这是一个把 **冰霜的 Custom Episodes 剧情运行器** 接到 **Custom Story Node Process** 上的 VSML 版本。
+为 vivid/stasis 提供外部 JSON 剧情、自定义节点图和原版文本框播放的 VML/VSML 模组。
 
 现在只有一套入口：
 
 ```text
 主菜单 NODE FLOWCHART
   ├─ 普通确认          -> 原版 Node Flowchart
-  └─ Shift + 确认      -> Custom Story Node Process
+  └─ Shift + 确认      -> Custom Episodes
                             -> 选择自定义 node
                             -> scene_story
                             -> IceFrost Custom Episodes runtime
                             -> 结束 / 中途退出
-                            -> 返回 Custom Story Node Process
+                            -> 返回 Custom Episodes
 ```
 
 旧版 Custom Episodes 的独立 picker、F9 picker 和主菜单抢输入逻辑不再作为入口使用。
@@ -46,7 +46,7 @@ raw/custom_story/
 }
 ```
 
-剧情 JSON 使用冰霜 Custom Episodes 的 **`lines` 格式**，不是旧 Custom Story Node Process v0.1.8 的 `commands` 格式：
+剧情 JSON 使用 Custom Episodes 的 **`lines` 格式**：
 
 ```json
 {
@@ -85,11 +85,11 @@ raw/custom_story/
 - 视频过场（`video`）、视频尺寸检测和失败超时处理
 - 谱面 gimmick：`custom_episode` 开始，`custom_episode_next` 按拍推进
 
-## Node Process 行为
+## 节点图行为
 
 - Shift + 确认只进入自定义 Node Flowchart，不再打开旧 picker。
 - 普通确认仍进入原版 Node Flowchart。
-- `requires[]`、`nav{}`、chapter 背景、Node Flow BGM 与同步 crossfade 继续由 Custom Story Node Process 负责。
+- `requires[]`、`nav{}`、chapter 背景、Node Flow BGM 与同步 crossfade 继续由 Custom Episodes 负责。
 - node 启动剧情时把对应 `story` 文件交给 Custom Episodes coroutine runner。
 - `end` / `goto` / `abort` 在 custom node 模式下返回 `scene_eventline`，不会掉回主菜单。
 - 暂停菜单中途退出剧情也保留 custom mode，并回到自定义 Node Flowchart。
@@ -117,8 +117,12 @@ coroutine = script_execute(global.load_scene);
 
 原版剧情和自定义剧情分别使用各自的运行器。
 
-## 迁移旧剧情
+## 读取旧剧情
 
-把原来的 `Custom Episodes/<剧集>/` 放到 `custom_story/episodes/<剧集>/`，在 `custom_story/nodes.json` 的 `nodes` 数组中添加节点，让 `story` 指向 `episodes/<剧集>/story.json`。外部图片、音频和视频仍相对该剧情 JSON 所在目录解析。修改配置后重新进入自定义节点图即可读取。
+旧版 `Custom Episodes/<剧集>/story.json` 可以直接保留，无需搬动文件或添加节点；重新进入自定义节点图后，未配置的旧剧集会自动追加到节点图中。
+
+读取顺序：优先使用 `nodes.json` 配置及 `custom_story/episodes/<剧集>/story.json`，新版文件不存在时才回退到 `Custom Episodes/<剧集>/story.json`。同一剧集只显示一次，外部图片、音频和视频相对实际读取的剧情文件解析。旧版 JSON 的 `lines` 格式继续支持。
+
+要自行配置旧剧情的节点位置、连线或标题，仍可在 `nodes.json` 中添加 `story: "episodes/<剧集>/story.json"`。
 
 节点的 `requires` 定义连线，`nav` 定义方向键导航；章节背景、BGM 和渐变时间可参考随附的 `nodes.json`。节点标题、章节标签和简介分别来自 `title`、`episode` 和 `description`。

@@ -923,7 +923,7 @@ function mod_cs_end()
     destroy_textbox();
     audio_stop_all();
     // Node-integrated stories return through the same diamond transition used by
-    // Custom Story Node Process. A raw room_goto() makes the ending visibly snap
+    // Custom Episodes. A raw room_goto() makes the ending visibly snap
     // back to the flowchart and also bypasses the normal transition pacing.
     if (variable_global_exists("custom_story_mode") && global.custom_story_mode == true)
     {
@@ -1891,7 +1891,7 @@ function mod_cs_chart_tick()
 }
 
 
-// Entry used by Custom Story Node Process. The node flow owns navigation and
+// Entry used by Custom Episodes. The node flow owns navigation and
 // room selection; this wrapper only prepares the IceFrost JSON runtime and returns
 // a real VIVID/STASIS coroutine for o_cutsceneConductor.
 global.mod_cs_run_node_story = function()

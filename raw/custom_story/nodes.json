@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "title": "CUSTOM EPISODES / NODE PROCESS",
+  "title": "Custom Episodes",
   "start": "example_station",
   "grid": 30,
   "default_bgm": "flowloop_1_true",
@@ -32,7 +32,7 @@
       "title": "示例：警局的一分钟",
       "description": [
         "冰霜 Custom Episodes 格式示例。",
-        "Node Process 负责入口，原版文本框负责播放。"
+        "自定义节点图入口，原版文本框播放。"
       ],
       "story": "episodes/_example/story.json",
       "requires": [],

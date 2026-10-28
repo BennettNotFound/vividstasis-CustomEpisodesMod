@@ -17,7 +17,7 @@ if (variable_global_exists("custom_story_mode") && global.custom_story_mode == t
     draw_set_font(global.default_font);
     draw_set_color(c_white);
     draw_set_halign(fa_right);
-    draw_text(313, 2, "CUSTOM " + string(current_node + 1) + "/" + string(array_length(nodes)));
+    draw_text(313, 2, "Custom Episodes " + string(current_node + 1) + "/" + string(array_length(nodes)));
     draw_set_halign(fa_left);
     exit;
 }

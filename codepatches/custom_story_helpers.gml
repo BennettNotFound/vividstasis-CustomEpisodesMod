@@ -56,7 +56,7 @@ global.custom_story_enter_mode = function()
 
     if (!file_exists(_node_file))
     {
-        show_message("Custom Story: custom_story/nodes.json was not found next to data.");
+        show_message("Custom Episodes: custom_story/nodes.json was not found next to data.");
         return false;
     }
 
@@ -118,12 +118,88 @@ global.custom_story_get_sprite = function(arg0)
     return _spr;
 };
 
+// Prefer the current layout, then fall back to the original episode folder.
+// Return paths relative to custom_story/ so image/audio/video bases stay intact.
+global.custom_story_resolve_file = function(arg0)
+{
+    var _file = string_replace_all(string(arg0), "\\", "/");
+    var _legacy = "../Custom Episodes/";
+    if (string_pos(_legacy, _file) == 1)
+        _file = "episodes/" + string_delete(_file, 1, string_length(_legacy));
+
+    if (file_exists(global.custom_story_root() + _file)) return _file;
+    if (string_pos("episodes/", _file) == 1)
+    {
+        var _old = _legacy + string_delete(_file, 1, string_length("episodes/"));
+        if (file_exists(global.custom_story_root() + _old)) return _old;
+    }
+    return _file;
+};
+
+// Old episodes need no nodes.json entries: append them after configured nodes.
+global.custom_story_add_legacy_nodes = function(arg0, arg1)
+{
+    var _defs = arg0;
+    var _seen = {};
+    var _ids = {};
+    var _row = 0;
+    for (var _i = 0; _i < array_length(_defs); _i++)
+    {
+        var _def = _defs[_i];
+        variable_struct_set(_ids, string(global.custom_story_field(_def, "id", "node_" + string(_i))), true);
+        var _file = global.custom_story_resolve_file(global.custom_story_field(_def, "story", ""));
+        variable_struct_set(_seen, _file, true);
+        _row = max(_row, real(global.custom_story_field(_def, "y", 0)));
+    }
+
+    var _root = working_directory + "Custom Episodes/";
+    var _folders = [];
+    // Finish the directory search before opening JSON files.
+    var _name = file_find_first(_root + "*", 16);
+    while (_name != "")
+    {
+        if (_name != "." && _name != ".." && directory_exists(_root + _name))
+            array_push(_folders, _name);
+        _name = file_find_next();
+    }
+    file_find_close();
+    array_sort(_folders, true);
+
+    var _added = 0;
+    for (var _i = 0; _i < array_length(_folders); _i++)
+    {
+        var _folder = _folders[_i];
+        var _file = global.custom_story_resolve_file("episodes/" + _folder + "/story.json");
+        if (variable_struct_exists(_seen, _file)) continue;
+        if (!file_exists(global.custom_story_root() + _file)) continue;
+        var _data = global.custom_story_read_json(global.custom_story_root() + _file);
+        if (!is_struct(_data) || !is_array(global.custom_story_field(_data, "lines", undefined))) continue;
+
+        var _id = "legacy_" + _folder;
+        while (variable_struct_exists(_ids, _id)) _id += "_";
+        variable_struct_set(_ids, _id, true);
+        variable_struct_set(_seen, _file, true);
+        array_push(_defs, {
+            id: _id, chapter: arg1, x: 8 + (_added * 4), y: _row + 4,
+            episode: string(global.custom_story_field(_data, "episode_name", "CUSTOM")),
+            title: string(global.custom_story_field(_data, "title", _folder)),
+            description: global.custom_story_field(_data, "description", ""),
+            story: _file, requires: []
+        });
+        _added++;
+    }
+    return _defs;
+};
+
 global.custom_story_load_nodes = function()
 {
     if (!instance_exists(o_mod_storyentry))
         instance_create_depth(0, 0, -999999, o_mod_storyentry);
 
-    var _doc = global.custom_story_read_json(global.custom_story_root() + "nodes.json");
+    var _config = global.custom_story_root() + "nodes.json";
+    var _doc = file_exists(_config)
+        ? global.custom_story_read_json(_config)
+        : { title: "Custom Episodes", nodes: [] };
     global.event_nodes = [];
     global.story_events = [];
     global.custom_story_chapters = [];
@@ -131,7 +207,7 @@ global.custom_story_load_nodes = function()
 
     if (_doc == undefined || !is_struct(_doc))
     {
-        show_message("Custom Story: nodes.json could not be loaded.");
+        show_message("Custom Episodes: nodes.json could not be loaded.");
         global.custom_story_chapters[0] = {
             id: "error", origin_x: 160, origin_y: 610,
             background: "flow1", background_x: 136, background_y: 594,
@@ -158,7 +234,7 @@ global.custom_story_load_nodes = function()
         return;
     }
 
-    global.custom_story_title = string(global.custom_story_field(_doc, "title", "CUSTOM NODE PROCESS"));
+    global.custom_story_title = string(global.custom_story_field(_doc, "title", "Custom Episodes"));
     var _grid = real(global.custom_story_field(_doc, "grid", 30));
     if (_grid <= 0) _grid = 30;
     var _default_bgm = string(global.custom_story_field(_doc, "default_bgm", global.custom_story_field(_doc, "flow_bgm", "")));
@@ -256,9 +332,11 @@ global.custom_story_load_nodes = function()
     }
 
     var _defs = global.custom_story_field(_doc, "nodes", []);
-    if (!is_array(_defs) || array_length(_defs) <= 0)
+    if (!is_array(_defs)) _defs = [];
+    _defs = global.custom_story_add_legacy_nodes(_defs, global.custom_story_chapters[0].id);
+    if (array_length(_defs) <= 0)
     {
-        show_message("Custom Story: nodes.json contains no nodes.");
+        show_message("Custom Episodes: nodes.json contains no nodes.");
         _defs = [{ id: "empty", chapter: global.custom_story_chapters[0].id, x: 0, y: 0, episode: "CUSTOM", title: "No nodes", story: "stories/error.json" }];
     }
 
@@ -357,7 +435,7 @@ global.custom_story_load_nodes = function()
             info_above: global.custom_story_field(_src, "info_above", false) == true,
             custom_story: true,
             custom_story_id: _id,
-            custom_story_file: string(global.custom_story_field(_src, "story", "stories/" + _id + ".json")),
+            custom_story_file: global.custom_story_resolve_file(global.custom_story_field(_src, "story", "stories/" + _id + ".json")),
             custom_episode: _episode,
             custom_story_chapter: _chapter_index,
             custom_story_bgm: _node_bgm,
